@@ -1,6 +1,6 @@
-import { Disclosure, DisclosureButton, DisclosurePanel} from '@headlessui/react'
+import { Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
-import {NavLink, useNavigate} from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import './../style.css'
 
 const navigation = [
@@ -9,12 +9,13 @@ const navigation = [
   { name: 'Contact Us', to: '/contact', current: false },
 ]
 
-function classNames(...classes: String[]) {
+function classNames(...classes: string[]) {
   return classes.filter(Boolean).join(' ')
 }
 
 export default function Navbar() {
   const navigate = useNavigate()
+  const isLoggedIn = !!localStorage.getItem('token') // Check if user is logged in
 
   return (
     <Disclosure
@@ -41,7 +42,7 @@ export default function Navbar() {
                   <NavLink
                     key={item.name}
                     to={item.to}
-                    className={({ isActive }) => 
+                    className={({ isActive }) =>
                       classNames(
                         isActive ? 'bg-white text-white' : 'text-blue-300 hover:bg-white-700 hover:text-white',
                         'rounded-md px-3 py-2 text-sm font-medium transition-colors duration-200'
@@ -55,20 +56,31 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Login & Signup buttons */}
+          {/* Right side buttons */}
           <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 space-x-2">
-            <button
-              onClick={() => navigate('/login')}
-              className="bg-white text-purple-600 px-3 py-1 rounded hover:bg-purple-100 transition duration-200"
-            >
-              Login
-            </button>
-            <button
-              onClick={() => navigate('/signup')}
-              className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition duration-200"
-            >
-              Sign Up
-            </button>
+            {isLoggedIn ? (
+              <button
+                onClick={() => navigate('/post')}
+                className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition duration-200"
+              >
+                Dashboard
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="bg-white text-purple-600 px-3 py-1 rounded hover:bg-purple-100 transition duration-200"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => navigate('/signup')}
+                  className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition duration-200"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -90,21 +102,33 @@ export default function Navbar() {
               {item.name}
             </DisclosureButton>
           ))}
-          {/* Mobile Login & Signup */}
-          <DisclosureButton
-            as="button"
-            onClick={() => navigate('/login')}
-            className="block w-full text-left bg-white text-purple-600 px-3 py-2 rounded hover:bg-purple-100 transition duration-200"
-          >
-            Login
-          </DisclosureButton>
-          <DisclosureButton
-            as="button"
-            onClick={() => navigate('/signup')}
-            className="block w-full text-left bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition duration-200"
-          >
-            Sign Up
-          </DisclosureButton>
+
+          {isLoggedIn ? (
+            <DisclosureButton
+              as="button"
+              onClick={() => navigate('/post')}
+              className="block w-full text-left bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition duration-200"
+            >
+              Dashboard
+            </DisclosureButton>
+          ) : (
+            <>
+              <DisclosureButton
+                as="button"
+                onClick={() => navigate('/login')}
+                className="block w-full text-left bg-white text-purple-600 px-3 py-2 rounded hover:bg-purple-100 transition duration-200"
+              >
+                Login
+              </DisclosureButton>
+              <DisclosureButton
+                as="button"
+                onClick={() => navigate('/signup')}
+                className="block w-full text-left bg-purple-600 text-white px-3 py-2 rounded hover:bg-purple-700 transition duration-200"
+              >
+                Sign Up
+              </DisclosureButton>
+            </>
+          )}
         </div>
       </DisclosurePanel>
     </Disclosure>
