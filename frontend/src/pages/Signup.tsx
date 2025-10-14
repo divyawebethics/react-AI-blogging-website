@@ -5,6 +5,7 @@ import type{SubmitHandler} from "react-hook-form";
 import type {IFormInput} from '../props/FormProps'
 import { AuthNav } from "../components/AuthNavigation";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const API_BASE = "http://127.0.0.1:8080"
 
@@ -15,6 +16,7 @@ export const SignUp = () => {
     email: "",
     password: ""
   }})
+    const navigate = useNavigate()
 
     const [message, setMessage] = useState<{type: "success" | "error"; text: string} | null>(null); 
     
@@ -36,6 +38,7 @@ export const SignUp = () => {
             }
             else{
                 setMessage({type: "success", text:"User Registered Successfully!"});
+                navigate('/login')
             }
         } catch (error) {
             setMessage({type: "error", text:"Something went wrong. Please try again later!"});

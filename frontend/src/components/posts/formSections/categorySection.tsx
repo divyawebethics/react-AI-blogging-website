@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { UseFormRegister } from "react-hook-form";
-import type { FormData } from "../../../props/create_blog_props";
+import type { FormData } from "../../../props/formTypes";
 import { fetchCategories } from "../../../apis/categoryApis";
 
 interface Props {
@@ -12,7 +12,7 @@ export const CategorySection: React.FC<Props> = ({ register, error }) => {
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
 
   useEffect(() => {
-    fetchCategories().then(setCategories);
+    fetchCategories().then(setCategories).catch(console.error);
   }, []);
 
   return (

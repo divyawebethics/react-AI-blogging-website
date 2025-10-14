@@ -1,6 +1,7 @@
 import React from "react";
 import type { UseFormRegister } from "react-hook-form";
-import type { FormData } from "../../../props/create_blog_props";
+import type { FormData } from "../../../props/formTypes";
+
 interface Props {
   register: UseFormRegister<FormData>;
   error?: string;

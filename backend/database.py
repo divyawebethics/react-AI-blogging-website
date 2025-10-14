@@ -15,20 +15,13 @@ keeps track of all the changes, now the session will process all the transaction
 anything. Session will either send everything or nothing.
 '''
 
-
 from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.orm import sessionmaker
 
 SQLALCHEMY_DATABASE_URL = "postgresql+pg8000://divya:Divya%402025@localhost:5432/users"
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,echo=True)
 
-'''
-The declarative base class connects python classes to the database tables, provide metadata tracking, enables ORM features,
-'''
-
-SessionLocal = sessionmaker(autocommit = False, autoflush = False, bind =  engine)
+engine = create_engine(SQLALCHEMY_DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db():
     db = SessionLocal()
@@ -36,5 +29,3 @@ def get_db():
         yield db
     finally:
         db.close()
-
-

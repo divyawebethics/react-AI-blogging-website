@@ -38,11 +38,28 @@ export const Login = () =>{
   }
 }
   useEffect(() => {
-   const token = localStorage.getItem("access_token");
-    if (token) {
-      navigate("/post"); 
+  const checkTokenValidity = async () => {
+    const token = localStorage.getItem("access_token");
+    if (!token) return;
+
+    try {
+      const res = await fetch("http://localhost:8080/verify-token", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.ok) {
+        navigate("/post");
+      } else {
+        localStorage.removeItem("access_token");
+      }
+    } catch (err) {
+      localStorage.removeItem("access_token");
     }
-  }, [navigate])
+  };
+
+  checkTokenValidity();
+}, [navigate]);
+
   return (
     <MainLayout title="Login">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

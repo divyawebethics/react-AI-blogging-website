@@ -10,7 +10,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session as SQLAlchemySession
 from pwdlib import  PasswordHash
 from database import get_db
-from jose.exceptions import JWTError  ## pip install python-jose
+from jose.exceptions import JWTError, ExpiredSignatureError ## pip install python-jose
 ## To get the secret key run this command openssl rand -hex 32
 
 SECRET_KEY = "e0c37d98cdd6972b67741df691df55f7d223d53a7b123ee61496a07a9ad9c36e"
@@ -40,12 +40,22 @@ def create_access_token(data:dict, expires_delta: timedelta | None = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def decode_access_token(token:str):
-    try: 
+def decode_access_token(token: str):
+    try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     except JWTError:
-        return None
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
     
 def get_user_by_email(db: SQLAlchemySession,email:str):
     return db.query(models.my_users).filter(models.my_users.email == email).first()

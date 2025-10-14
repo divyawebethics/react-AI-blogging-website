@@ -1,85 +1,67 @@
 import { API_URL } from "./categoryApis";
+import type { PostData, UpdatePostData } from "../props/formTypes";
+import axios from "axios";
 
-export interface PostData {
-  id?: number;
-  title: string;
-  description: string;
-  category_id: number;
-  body: string;
-  image?: File;
-  is_private: boolean;
-  image_url?: string; 
-}
+const BASE_URL = "http://localhost:8080";
 
-export const fetchPosts = async () => {
-  const res = await fetch(`${API_URL}/posts/`);
-  return res.json();
+const transformImageUrl = (imageUrl: string | undefined): string | undefined => {
+  if (!imageUrl) return undefined;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${BASE_URL}${imageUrl}`;
 };
 
-export const fetchPost = async (id: number) => {
-  const res = await fetch(`${API_URL}/posts/${id}`);
-  return res.json();
+export const fetchPost = async (id: number): Promise<PostData> => {
+  const res = await axios.get(`${API_URL}/posts/${id}`);
+  const post = res.data;
+  return {
+    ...post,
+    image_url: transformImageUrl(post.image_url)
+  };
 };
-export const createPost = async (data: PostData) => {
+
+export const createPost = async (formData: FormData) => {
+  const token = localStorage.getItem('token');
+  const res = await axios.post(`${API_URL}/posts/`, formData, {
+    headers: { 
+      "Content-Type": "multipart/form-data",
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  return res.data;
+};
+
+export const fetchPosts = async (): Promise<PostData[]> => {
+  const res = await axios.get(`${API_URL}/posts/`);
+  const posts = res.data;
+  return posts.map((post: PostData) => ({
+    ...post,
+    image_url: transformImageUrl(post.image_url)
+  }));
+};
+
+export const updatePost = async (id: number, data: FormData | UpdatePostData) => {
+  const token = localStorage.getItem('token');
+  
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': data instanceof FormData ? 'multipart/form-data' : 'application/json'
+  };
+
   try {
-    const formData = new FormData();
-    formData.append("title", data.title);
-    formData.append("description", data.description);
-    formData.append("body", data.body);
-    formData.append("category_id", String(data.category_id));
-    formData.append("is_private", String(data.is_private));
-    
-    if (data.image instanceof File) {
-      formData.append("image", data.image);
-    }
-
-    const res = await fetch(`${API_URL}/posts/create-post`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP error! status: ${res.status}`);
-    }
-
-    return await res.json();
+    const response = await axios.put(`${API_URL}/posts/${id}`, data, { headers });
+    return response.data;
   } catch (error) {
-    console.error("Failed to create post:", error);
+    console.error('Error updating post:', error);
     throw error;
   }
 };
 
-export const updatePost = async (id: number, data: Partial<PostData>) => {
-  const formData = new FormData();
-
-  if (data.title) formData.append("title", data.title);
-  if (data.description) formData.append("description", data.description);
-  if (data.body) formData.append("body", data.body);
-  if (data.category_id !== undefined)
-    formData.append("category_id", String(data.category_id));
-  if (data.is_private !== undefined)
-    formData.append("is_private", String(data.is_private));
-  if (data.image) {
-    formData.append("image", data.image); 
-  }
-
-  const res = await fetch(`${API_URL}/posts/${id}`, {
-    method: "PUT",
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error("Backend error:", errorText);
-    throw new Error("Failed to update post");
-  }
-
-  return res.json();
-};
-
 export const deletePost = async (id: number) => {
-  const res = await fetch(`${API_URL}/posts/${id}`, {
-    method: "DELETE",
+  const token = localStorage.getItem('token');
+  const res = await axios.delete(`${API_URL}/posts/${id}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
   });
-  return res.json();
+  return res.data;
 };

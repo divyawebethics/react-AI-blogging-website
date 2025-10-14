@@ -1,5 +1,5 @@
 ## These are pydantic models to validate the fields and ensure that user fill the correct information 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
 
@@ -14,7 +14,7 @@ class UserLogin(BaseModel):
     password: str
 
 class Token(BaseModel):
-    access_token:str
+    access_token: str
 
 class TokenData(BaseModel):
     name: str | None = None
@@ -41,8 +41,7 @@ class CategoryUpdate(CategoryCreate):
 
 class CategoryModel(CategoryBase):
     id: int
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PostBase(BaseModel):
     title: str
@@ -51,7 +50,6 @@ class PostBase(BaseModel):
     body: str
     is_private: bool = False
     image_url: Optional[str] = None
-
 
 class PostCreate(PostBase):
     pass
@@ -68,13 +66,11 @@ class PostResponse(BaseModel):
     title: str
     description: str
     body: str
-    image_data: Optional[bytes] = None   
-    image_filename: Optional[str] = None
+    image_url: Optional[str] = None  
     category_id: Optional[int] = None
     category: Optional[str] = None
     is_private: bool
     created_at: datetime
     updated_at: datetime
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True) 

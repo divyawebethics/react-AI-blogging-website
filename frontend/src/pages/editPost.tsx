@@ -8,36 +8,35 @@ import { CategorySection } from "../components/posts/formSections/categorySectio
 import { ImageUploadSection } from "../components/posts/formSections/ImageUploadSection";
 import { BodySection } from "../components/posts/formSections/bodySection";
 import { fetchPost, updatePost } from "../apis/postApis";
-
-interface FormData {
-  title: string;
-  description: string;
-  category: string;
-  body: string;
-  image: FileList;
-  is_private: boolean;
-}
+import type { FormData } from "../props/formTypes";
 
 export const EditPost: React.FC = () => {
   const { id } = useParams<{ id: string }>(); 
   const navigate = useNavigate();
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>();
+  const { register, handleSubmit, reset, formState: { errors }, watch, setValue } = useForm<FormData>();
   const [isSaving, setIsSaving] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [originalIsPrivate, setOriginalIsPrivate] = useState(false);
+
+  const formData = watch();
+  const currentIsPrivate = watch("is_private");
 
   useEffect(() => {
     const getPost = async () => {
       try {
         const data = await fetchPost(Number(id));
+        setOriginalIsPrivate(data.is_private);
+        
         reset({
           title: data.title,
           description: data.description,
           category: String(data.category_id),
           body: data.body,
-          is_private: data.is_private,
+          is_private: data.is_private, 
         });
       } catch (error) {
         console.error("Failed to fetch post", error);
+        alert("Failed to load post");
       }
     };
 
@@ -45,22 +44,29 @@ export const EditPost: React.FC = () => {
   }, [id, reset]);
 
   const onSubmit = async (data: FormData) => {
+    if (!id) return;
+    
     setIsSaving(true);
     try {
-      const payload = {
-        title: data.title,
-        description: data.description,
-        category_id: Number(data.category),
-        body: data.body,
-        is_private: data.is_private ?? false,
-        image_url: "", 
-      };
+      const formPayload = new FormData();
+            formPayload.append("title", data.title);
+            formPayload.append("description", data.description);
+            formPayload.append("body", data.body);
+            formPayload.append("category_id", data.category);
+            formPayload.append("is_private", String(data.is_private ?? false));
+      
+            if (data.image_file && data.image_file.length > 0) {
+              formPayload.append("image", data.image_file[0]);
+            }
+      
+      
 
-      await updatePost(Number(id), payload);
+        await updatePost(Number(id),formPayload);
+      
       alert("Post updated successfully!");
-      navigate("/"); 
+      navigate("/post"); 
     } catch (error) {
-      console.error(error);
+      console.error("Update error:", error);
       alert("Failed to update post");
     } finally {
       setIsSaving(false);
@@ -84,19 +90,33 @@ export const EditPost: React.FC = () => {
             <ImageUploadSection register={register} />
             <BodySection register={register} error={errors.body?.message} />
 
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="is_private"
-                {...register("is_private")}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="is_private" className="text-gray-700">
-                Publish as Private
-              </label>
-            </div>
+            <div className="flex justify-between items-center mt-10 p-4 bg-white border rounded-lg shadow-sm">
+              <div className="flex items-center space-x-6">
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    value="false"
+                    checked={currentIsPrivate === false}
+                    onChange={() => setValue("is_private", false)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium">Public</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="radio"
+                    value="true"
+                    checked={currentIsPrivate === true}
+                    onChange={() => setValue("is_private", true)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700 font-medium">Private</span>
+                </label>
+                <div className="text-sm text-gray-500 ml-4">
+                  Original: {originalIsPrivate ? "Private" : "Public"}
+                </div>
+              </div>
 
-            <div className="flex justify-end">
               <button
                 type="submit"
                 disabled={isSaving}
@@ -111,6 +131,26 @@ export const EditPost: React.FC = () => {
                   <span>💾 Save Changes</span>
                 )}
               </button>
+            </div>
+
+            <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+              <p className="text-xs font-semibold text-gray-600 mb-2">
+                Current Form Data (Live Preview):
+              </p>
+              <pre className="text-xs text-gray-700 overflow-auto bg-white p-2 rounded max-h-40">
+                {JSON.stringify(
+                  { 
+                    ...formData, 
+                    image_file: formData.image_file && formData.image_file.length > 0 ? { 
+                      name: formData.image_file[0]?.name, 
+                      size: formData.image_file[0]?.size,
+                      type: formData.image_file[0]?.type,
+                    } : null 
+                  },
+                  null,
+                  2
+                )}
+              </pre>
             </div>
           </form>
         </main>
