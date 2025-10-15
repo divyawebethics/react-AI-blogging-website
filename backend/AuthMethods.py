@@ -64,8 +64,7 @@ def get_user_by_email(db: SQLAlchemySession,email:str):
 ## In python all required arguments must come before all the default or optional arguments like if write db:SQLAlchemySession after the token gives error if not user depends
 
 ## Depends is fastapi dependency injection system and it gets the things ready before running the function
-
-async def get_current_user(token: str = Depends(oauth2_scheme), db:SQLAlchemySession = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: SQLAlchemySession = Depends(get_db)) -> models.my_users:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -78,12 +77,25 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db:SQLAlchemySes
     email: str = payload.get("sub")
     if email is None:
         raise credentials_exception
-    user = get_user_by_email(db, email)
+    
+    from sqlalchemy.orm import joinedload
+    user = db.query(models.my_users).options(joinedload(models.my_users.role)).filter(models.my_users.email == email).first()
+    
     if user is None:
         raise credentials_exception
     return user
 
+async def get_current_active_user(current_user = Depends(get_current_user)):
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return current_user
 
-
-
+async def get_admin_user(current_user = Depends(get_current_user), db:SQLAlchemySession = Depends(get_db)):
+    if not current_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not Authenticated")
+    user_role = db.query(models.Role).filter(models.Role.id == current_user.role_id).first()
+    if not user_role or user_role.name != 'admin':
+        raise HTTPException(status_code = status.HTTP_403_FORBIDDEN, detail= "Admin access required")
+    
+    return current_user
 

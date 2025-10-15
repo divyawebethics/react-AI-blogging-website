@@ -2,25 +2,18 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { SideBar } from "../components/sidebar";
 import { fetchPosts, deletePost } from "../apis/postApis";
-
-interface Post {
-  id: number;
-  title: string;
-  category: string;
-  updated_at: string;
-  is_private: boolean;
-}
+import type { PostData } from "../props/formTypes";
 
 export const PostsDashboard: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostData[]>([]); // Use PostData directly
   const navigate = useNavigate();
 
   const loadPosts = async () => {
     try {
       const data = await fetchPosts();
       setPosts(data);
-      console.log(data)
+      console.log(data);
     } catch (error) {
       console.error("Error fetching posts:", error);
     }
@@ -52,7 +45,7 @@ export const PostsDashboard: React.FC = () => {
         <header className="bg-white border-b border-gray-200 px-8 py-6 sticky top-0 z-20 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-gray-800">Posts Dashboard</h1>
           <button
-            onClick={() => navigate("/post/create-post")}
+            onClick={() => navigate("/posts/create-post")}
             className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all"
           >
             + Create Post
@@ -91,7 +84,7 @@ export const PostsDashboard: React.FC = () => {
                         {post.is_private ? "Private" : "Public"}
                       </td>
                       <td className="px-6 py-4">
-                        {new Date(post.updated_at).toLocaleString("en-IN", {
+                        {new Date(post.updated_at || '').toLocaleString("en-IN", {
                           dateStyle: "medium",
                           timeStyle: "short",
                         })}
@@ -104,7 +97,7 @@ export const PostsDashboard: React.FC = () => {
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(post.id)}
+                          onClick={() => handleDelete(post.id || 0)}
                           className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700"
                         >
                           Delete

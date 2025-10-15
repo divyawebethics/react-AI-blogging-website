@@ -42,15 +42,14 @@ def create_post(
     description: str,
     body: str,
     category_id: int,
+    user_id: int,
     is_private: bool = False,
     image: UploadFile | None = None,
 ):
     image_url = None
     if image and image.filename:
-        # Create secure filename and save
         file_location = os.path.join(UPLOAD_DIR, image.filename)
         with open(file_location, "wb+") as f:
-            # Read file in chunks to handle large files
             contents = image.file.read()
             f.write(contents)
         image_url = f"/uploads/{image.filename}"
@@ -60,6 +59,7 @@ def create_post(
         description=description,
         body=body,
         category_id=category_id,
+        user_id=user_id,
         is_private=is_private,
         image_url=image_url,
     )
@@ -69,9 +69,16 @@ def create_post(
     db.refresh(db_post)
     return db_post
 
-def get_posts(db: Session):
-    posts = db.query(models.Post).all()
-    return posts
+def get_posts_for_landing(db:Session):
+    return db.query(models.Post).filter(models.Post.is_private == False).all()
+
+def get_posts_for_user(db:Session, user_id: int):
+    return db.query(models.Post).filter(
+        (models.Post.is_private == False) | (models.Post.user_id == user_id)
+    ).all()
+
+def get_posts_for_admin(db:Session):
+    return db.query(models.Post).all()
 
 def get_post(db: Session, post_id: int):
     post = db.query(models.Post).filter(models.Post.id == post_id).first()

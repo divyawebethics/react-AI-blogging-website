@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends, Form, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import crud, models, os
 from database import engine, get_db
 from pydantic_models import (
@@ -9,9 +9,21 @@ from pydantic_models import (
     CategoryCreate, CategoryUpdate, CategoryModel,
     PostResponse, PostUpdate, PostCreate
 )
-from AuthMethods import get_password_hash, get_current_user, get_user_by_email, verify_password, create_access_token
+from AuthMethods import get_password_hash, get_current_user, get_user_by_email, verify_password, create_access_token, get_admin_user
 from datetime import timedelta
+from dotenv import load_dotenv
+import os 
+from database import SessionLocal
 
+
+ACCESS_TOKEN_EXPIRE_MINUTES = 30 
+
+BASE_URL = "http://localhost:8080"
+
+
+load_dotenv()
+admin_email = os.getenv("ADMIN_EMAIL")
+admin_password = os.getenv("ADMIN_PASSWORD")
 app = FastAPI()
 
 UPLOAD_DIR = "uploads"
@@ -29,10 +41,56 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     models.Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        admin_role = db.query(models.Role).filter(models.Role.name == "admin").first()
+        if not admin_role:
+            admin_role = models.Role(name="admin")
+            db.add(admin_role)
+            db.flush()  
+        
+        user_role = db.query(models.Role).filter(models.Role.name == "user").first()
+        if not user_role:
+            user_role = models.Role(name="user")
+            db.add(user_role)
+            db.flush()
+        
+        db.commit()
+        
+        admin_email = "admin@gmail.com"
+        admin_user = db.query(models.my_users).filter(models.my_users.email == admin_email).first()
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+        if not admin_user:
+            hashed_pw = get_password_hash("Admin123")
+            new_admin = models.my_users(
+                first_name="Admin",
+                last_name="User",
+                email=admin_email,
+                password=hashed_pw,
+                role_id=admin_role.id  
+            )
+            db.add(new_admin)
+            print(f"✅ Admin user created with role_id: {admin_role.id}")
+        else:
+            admin_user.role_id = admin_role.id
+            print(f"✅ Existing admin user updated with role_id: {admin_role.id}")
+        
+        db.commit()
+        
+        print("🔍 Verifying role setup:")
+        roles = db.query(models.Role).all()
+        for role in roles:
+            print(f"   - {role.name}: id={role.id}")
+            
+        admin_check = db.query(models.my_users).filter(models.my_users.email == "admin@gmail.com").first()
+        if admin_check:
+            print(f"✅ Admin user has role_id: {admin_check.role_id}")
 
-BASE_URL = "http://localhost:8080"
+    except Exception as e:
+        print(f"❌ Error during startup: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 def get_full_image_url(image_path: str | None) -> str | None:
     if not image_path:
@@ -45,28 +103,57 @@ async def signup(user: UserIn, db: Session = Depends(get_db)):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    user_role = db.query(models.Role).filter(models.Role.name == 'user').first()
+    if not user_role:
+        raise HTTPException(status_code=400, detail="User role not found in database")
+    
     hashed_pw = get_password_hash(user.password)
-    user_data = user.dict()
-    user_data["password"] = hashed_pw
-    new_user = models.my_users(**user_data)
+
+    new_user = models.my_users(
+        first_name=user.first_name,
+        last_name=user.last_name,
+        email=user.email,
+        password=hashed_pw,
+        role_id=user_role.id
+    )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
-
     token = create_access_token(data={"sub": new_user.email})
-    return UserOutWithToken(**user.dict(), access_token=token)
+
+    return UserOutWithToken(
+        first_name=new_user.first_name,
+        last_name=new_user.last_name,
+        email=new_user.email,
+        access_token=token  
+    )
 
 @app.post("/login", response_model=Token)
 async def login(user: UserLogin, db: Session = Depends(get_db)):
-    user_db = get_user_by_email(db, user.email)
+    print("Login attempt:", user.email, user.password)  
+    user_db = db.query(models.my_users).options(joinedload(models.my_users.role)).filter(models.my_users.email == user.email).first()
     if not user_db or not verify_password(user.password, user_db.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+        
+    token = create_access_token(
+        data={"sub": user_db.email, "role": user_db.role.name},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    return {"access_token": token, "token_type": "bearer", "role": user_db.role.name}
 
-    token = create_access_token(data={"sub": user_db.email}, expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    return {"access_token": token}
+@app.get("/debug-password")
+def debug_password(db: Session = Depends(get_db)):
+    user = db.query(models.my_users).filter(models.my_users.email == "admin@gmail.com").first()
+    if not user:
+        return {"error": "Admin not found"}
+    
+    test_password = "Admin123"  
+    from AuthMethods import verify_password
+    is_valid = verify_password(test_password, user.password)
+    return {"password_valid": is_valid}
 
-@app.post("/categories/", response_model=CategoryModel)
+@app.post("/categories/", response_model=CategoryModel, dependencies = [Depends(get_admin_user)])
 def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
     return crud.create_category(db, category)
 
@@ -74,14 +161,14 @@ def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
 def get_categories(db: Session = Depends(get_db)):
     return crud.get_categories(db)
 
-@app.put("/categories/{category_id}")
+@app.put("/categories/{category_id}", dependencies = [Depends(get_admin_user)])
 def update_category(category_id: int, category: CategoryUpdate, db: Session = Depends(get_db)):
     db_cat = crud.update_category(db, category_id, category)
     if not db_cat:
         raise HTTPException(status_code=404, detail="Category not found")
     return db_cat
 
-@app.delete("/categories/{category_id}")
+@app.delete("/categories/{category_id}", dependencies = [Depends(get_admin_user)])
 def delete_category(category_id: int, db: Session = Depends(get_db)):
     db_cat = crud.delete_category(db, category_id)
     if not db_cat:
@@ -96,6 +183,7 @@ def create_post_endpoint(
     category_id: int = Form(...),
     is_private: bool = Form(False),
     image: UploadFile | None = File(None),
+    current_user: models.my_users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     try:
@@ -105,6 +193,7 @@ def create_post_endpoint(
             description=description,
             body=body,
             category_id=category_id,
+            user_id=current_user.id,  
             is_private=is_private,
             image=image
         )
@@ -127,9 +216,13 @@ def create_post_endpoint(
         raise HTTPException(status_code=500, detail=f"Error creating post: {str(e)}")
 
 @app.get("/posts/", response_model=list[PostResponse])
-def get_posts_endpoint(db: Session = Depends(get_db)):
+def get_posts_endpoint(current_user: models.my_users = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role.name == "admin":
+        posts = crud.get_posts_for_admin(db)
+    else:
+        posts = crud.get_posts_for_user(db, current_user.id)  # FIX: Added assignment and user_id
+    
     try:
-        posts = crud.get_posts(db)
         response_posts = []
         for post in posts:
             response_data = {
@@ -148,7 +241,7 @@ def get_posts_endpoint(db: Session = Depends(get_db)):
         return response_posts
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching posts: {str(e)}")
-
+    
 @app.get("/posts/{post_id}", response_model=PostResponse)
 def get_post(post_id: int, db: Session = Depends(get_db)):
     post = crud.get_post(db, post_id)
@@ -168,6 +261,26 @@ def get_post(post_id: int, db: Session = Depends(get_db)):
         "updated_at": post.updated_at
     }
     return PostResponse(**response_data)
+
+
+@app.get("/", response_model=list[PostResponse])
+def get_landing_posts(db:Session = Depends(get_db)):
+    posts = crud.get_posts_for_landing(db)
+    return [
+        PostResponse(
+            id=p.id,
+            title=p.title,
+            description=p.description,
+            body=p.body,
+            image_url=get_full_image_url(p.image_url),
+            category_id=p.category_id,
+            category=p.category.name if p.category else None,
+            is_private=p.is_private,
+            created_at=p.created_at,
+            updated_at=p.updated_at
+        )
+        for p in posts
+    ]
 
 @app.put("/posts/{post_id}", response_model=PostResponse)
 def update_post(

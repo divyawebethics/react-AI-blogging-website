@@ -60,7 +60,7 @@ export default function Navbar() {
           <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0 space-x-2">
             {isLoggedIn ? (
               <button
-                onClick={() => navigate('/post')}
+                onClick={() => navigate('/posts')}
                 className="bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 transition duration-200"
               >
                 Dashboard
@@ -68,7 +68,7 @@ export default function Navbar() {
             ) : (
               <>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/')}
                   className="bg-white text-purple-600 px-3 py-1 rounded hover:bg-purple-100 transition duration-200"
                 >
                   Login

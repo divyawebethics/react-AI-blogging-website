@@ -1,35 +1,24 @@
-import { Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
-import { isTokenValid } from '../utils/auth'; 
+import { useContext } from "react";
+import { Navigate } from "react-router-dom";
+import { AuthContext } from "../utils/auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  requiredRole?: "admin" | "user";
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const [isValidating, setIsValidating] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
+  children, 
+  requiredRole 
+}) => {
+  const authContext = useContext(AuthContext);
 
-  useEffect(() => {
-    const checkAuth = () => {
-      const authenticated = isTokenValid();
-      setIsAuthenticated(authenticated);
-      setIsValidating(false);
-    };
-
-    checkAuth();
-  }, []);
-
-  if (isValidating) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
-      </div>
-    );
+  if (!authContext?.user) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+  if (requiredRole && authContext.user.role !== requiredRole) {
+    return <Navigate to="/home" replace />;
   }
 
   return <>{children}</>;

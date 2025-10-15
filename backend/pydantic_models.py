@@ -1,4 +1,3 @@
-## These are pydantic models to validate the fields and ensure that user fill the correct information 
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import datetime
@@ -15,17 +14,20 @@ class UserLogin(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    token_type: str = "bearer"
+    role: Optional[str] = None  
 
 class TokenData(BaseModel):
-    name: str | None = None
+    name: Optional[str] = None
 
 class UserOutBase(BaseModel):
     first_name: str
     last_name: str
     email: str
+    role: Optional[str] = None  
 
 class UserOut(UserOutBase):
-    pass 
+    pass
 
 class UserOutWithToken(UserOutBase):
     access_token: str
@@ -66,11 +68,12 @@ class PostResponse(BaseModel):
     title: str
     description: str
     body: str
-    image_url: Optional[str] = None  
+    image_url: Optional[str] = None
     category_id: Optional[int] = None
     category: Optional[str] = None
     is_private: bool
     created_at: datetime
     updated_at: datetime
+    owner: Optional[str] = None 
 
-    model_config = ConfigDict(from_attributes=True) 
+    model_config = ConfigDict(from_attributes=True)

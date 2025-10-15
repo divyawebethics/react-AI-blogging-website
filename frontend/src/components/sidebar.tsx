@@ -58,8 +58,11 @@ export const SideBar = ({ onToggle }: { onToggle: (collapsed: boolean) => void }
             <MenuItem icon={<FaHome />} component={<Link to="/home" />}>
               Home
             </MenuItem>
-            <MenuItem icon={<IoMdCreate />} component={<Link to="/post" />}>
+            <MenuItem icon={<IoMdCreate />} component={<Link to="/posts/create-post" />}>
               Create Post
+            </MenuItem>
+            <MenuItem icon={<IoMdCreate />} component={<Link to="/dashboard" />}>
+              Dashboard
             </MenuItem>
             <MenuItem
               icon={<BiSolidCategoryAlt />}
